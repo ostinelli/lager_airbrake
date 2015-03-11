@@ -24,13 +24,13 @@ notify(LogEntry, Environment, ProjectId, ApiKey) ->
         %% get url
         Url = url_for(ProjectId, ApiKey),
         %% notify
-        check_notify(Url, Severity, Message, Pid, File, Line, Module, Function, Node, Environment)
+        check_notify_from_self(Url, Severity, Message, Pid, File, Line, Module, Function, Node, Environment)
     end).
 
 %% ===================================================================
 %% Internal
 %% ===================================================================
--spec check_notify(
+-spec check_notify_from_self(
     Url :: binary(),
     Severity :: atom(),
     Message :: list(),
@@ -42,7 +42,29 @@ notify(LogEntry, Environment, ProjectId, ApiKey) ->
     Node :: atom(),
     Environment :: string()
 ) -> ok.
-check_notify(Url, Severity, Message, Pid, File, Line, Module, Function, Node, Environment) ->
+check_notify_from_self(Url, Severity, Message, Pid, File, Line, Module, Function, Node, Environment) ->
+    {ok, Mp} = re:compile("\\Alager_airbrake_"),
+    case re:run(atom_to_list(Module), Mp) of
+        nomatch ->
+            check_notify_lager_dropped(Url, Severity, Message, Pid, File, Line, Module, Function, Node, Environment);
+        _ ->
+            %% do not log
+            ok
+    end.
+
+-spec check_notify_lager_dropped(
+    Url :: binary(),
+    Severity :: atom(),
+    Message :: list(),
+    Pid :: pid(),
+    File :: list(),
+    Line :: non_neg_integer(),
+    Module :: atom(),
+    Function :: atom(),
+    Node :: atom(),
+    Environment :: string()
+) -> ok.
+check_notify_lager_dropped(Url, Severity, Message, Pid, File, Line, Module, Function, Node, Environment) ->
     {ok, Mp} = re:compile("dropped \\d+ messages in the last second that exceeded the limit of"),
     case re:run(Message, Mp) of
         nomatch ->
@@ -75,8 +97,23 @@ notify(Url, Severity, Message, Pid, File, Line, Module, Function, Node, Environm
     ],
     Options = [],
     %% send
-    hackney:request(Method, Url, Headers, Json, Options),
-    ok.
+    case hackney:request(Method, Url, Headers, Json, Options) of
+        {ok, 201, _RespHeaders, _ClientRef} ->
+            ok;
+        {ok, StatusCode, RespHeaders, ClientRef} ->
+            %% get response body
+            {ok, Body} = hackney:body(ClientRef),
+            %% log error
+            error("Could not send notification to Airbrake", [
+                {request_body, Json},
+                {response_status_code, StatusCode},
+                {response_headers, RespHeaders},
+                {response_body, Body}
+            ]);
+        Other ->
+            %% log error
+            error("Could not send notification to Airbrake", [Other])
+    end.
 
 -spec url_for(ProjectId :: binary(), ApiKey :: binary()) -> Url :: binary().
 url_for(ProjectId, ApiKey) ->
