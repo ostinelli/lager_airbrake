@@ -1,0 +1,19 @@
+{application, lager_airbrake,
+    [
+        {description, "An Airbrake backend for Lager."},
+        {vsn, "0.1.0"},
+        {registered, [
+        ]},
+        {applications, [
+            kernel,
+            stdlib,
+            lager,
+            crypto,
+            public_key,
+            ssl,
+            hackney
+        ]},
+        {mod, {lager_airbrake_app, []}},
+        {env, []}
+    ]
+}.
