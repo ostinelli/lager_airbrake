@@ -7,19 +7,14 @@
 %% ===================================================================
 %% API
 %% ===================================================================
--spec notify(LogEntry :: any(), Environment :: string(), ProjectId :: string(), ApiKey :: string()) -> ok.
+-spec notify(LogEntry :: any(), Environment :: string(), ProjectId :: binary(), ApiKey :: binary()) -> pid().
 notify(LogEntry, Environment, ProjectId, ApiKey) ->
-
     spawn(fun() ->
         %% get main properties
         Severity = lager_msg:severity(LogEntry),
         Message = lists:flatten(lager_msg:message(LogEntry)),
         %% get metadata
         Metadata = lager_msg:metadata(LogEntry),
-
-        io:format("Metadata IS: ~p", [Metadata]),
-
-
         Pid = proplists:get_value(pid, Metadata),
         File = proplists:get_value(file, Metadata),
         Line = proplists:get_value(line, Metadata),
@@ -32,10 +27,21 @@ notify(LogEntry, Environment, ProjectId, ApiKey) ->
         check_notify(Url, Severity, Message, Pid, File, Line, Module, Function, Node, Environment)
     end).
 
-
 %% ===================================================================
 %% Internal
 %% ===================================================================
+-spec check_notify(
+    Url :: binary(),
+    Severity :: atom(),
+    Message :: list(),
+    Pid :: pid(),
+    File :: list(),
+    Line :: non_neg_integer(),
+    Module :: atom(),
+    Function :: atom(),
+    Node :: atom(),
+    Environment :: string()
+) -> ok.
 check_notify(Url, Severity, Message, Pid, File, Line, Module, Function, Node, Environment) ->
     {ok, Mp} = re:compile("dropped \\d+ messages in the last second that exceeded the limit of"),
     case re:run(Message, Mp) of
@@ -46,11 +52,21 @@ check_notify(Url, Severity, Message, Pid, File, Line, Module, Function, Node, En
             ok
     end.
 
+-spec notify(
+    Url :: binary(),
+    Severity :: atom(),
+    Message :: any(),
+    Pid :: pid(),
+    File :: any(),
+    Line :: non_neg_integer(),
+    Module :: atom(),
+    Function :: atom(),
+    Node :: atom(),
+    Environment :: string()
+) -> ok.
 notify(Url, Severity, Message, Pid, File, Line, Module, Function, Node, Environment) ->
-
     %% build json
     Json = json_for(Severity, Message, Pid, File, Line, Module, Function, Node, Environment),
-    io:format("JSON IS: ~p", [Json]),
 
     %% build request
     Method = post,
@@ -59,20 +75,24 @@ notify(Url, Severity, Message, Pid, File, Line, Module, Function, Node, Environm
     ],
     Options = [],
     %% send
+    hackney:request(Method, Url, Headers, Json, Options),
+    ok.
 
-    case hackney:request(Method, Url, Headers, Json, Options) of
-        {ok, 201, _RespHeaders, ClientRef} ->
-            {ok, Body} = hackney:body(ClientRef),
-            io:format("BODY: ~p", [Body]),
-
-            ok;
-        _ ->
-            ok
-    end.
-
+-spec url_for(ProjectId :: binary(), ApiKey :: binary()) -> Url :: binary().
 url_for(ProjectId, ApiKey) ->
-    lists:concat(["https://airbrake.io/api/v3/projects/", ProjectId, "/notices?key=", ApiKey]).
+    <<"https://airbrake.io/api/v3/projects/", ProjectId/binary, "/notices?key=", ApiKey/binary>>.
 
+-spec json_for(
+    Severity :: atom(),
+    Message :: any(),
+    Pid :: pid(),
+    File :: any(),
+    Line :: non_neg_integer(),
+    Module :: atom(),
+    Function :: atom(),
+    Node :: atom(),
+    Environment :: string()
+) -> Json :: binary().
 json_for(Severity, Message, Pid, File, Line, Module, Function, Node, Environment) ->
     JsonTerm = {[
         {notifier,
@@ -112,9 +132,11 @@ json_for(Severity, Message, Pid, File, Line, Module, Function, Node, Environment
     ]},
     jiffy:encode(JsonTerm).
 
+-spec to_binary(any()) -> binary().
 to_binary(X) when is_pid(X) -> list_to_binary(pid_to_list(X));
 to_binary(X) when is_atom(X) -> list_to_binary(atom_to_list(X));
 to_binary(X) when is_list(X) -> list_to_binary(X).
 
+-spec force_integer(any()) -> integer().
 force_integer(undefined) -> 0;
 force_integer(X) -> X.

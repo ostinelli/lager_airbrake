@@ -7,9 +7,9 @@
 %% records
 -record(state, {
     environment = "" :: string(),
-    project_id = "" :: string(),
-    api_key = "" :: string(),
-    level = error :: atom()
+    project_id = <<>> :: binary(),
+    api_key = <<>> :: binary(),
+    level = 0 :: non_neg_integer()
 }).
 
 
@@ -22,9 +22,8 @@
 %% ----------------------------------------------------------------------------------------------------------
 -spec init([{atom(), any()}]) ->
     {ok, #state{}} |
-    {ok, #state{}, Timeout :: non_neg_integer()} |
-    ignore |
-    {stop, Reason :: any()}.
+    {ok, #state{}, hibernate} |
+    {error, Reason :: any()}.
 init(Options) ->
     %% get options
     Environment = proplists:get_value(environment, Options),
@@ -36,8 +35,8 @@ init(Options) ->
     %% build state
     {ok, #state{
         environment = Environment,
-        project_id = ProjectId,
-        api_key = ApiKey,
+        project_id = list_to_binary(ProjectId),
+        api_key = list_to_binary(ApiKey),
         level = LevelInt
     }}.
 
