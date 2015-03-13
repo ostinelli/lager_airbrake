@@ -12,7 +12,7 @@ notify(LogEntry, Environment, ProjectId, ApiKey) ->
     spawn(fun() ->
         %% get main properties
         Severity = lager_msg:severity(LogEntry),
-        Message = lists:flatten(lager_msg:message(LogEntry)),
+        Message = lager_msg:message(LogEntry),
         %% get metadata
         Metadata = lager_msg:metadata(LogEntry),
         Pid = proplists:get_value(pid, Metadata),
@@ -170,9 +170,7 @@ json_for(Severity, Message, Pid, File, Line, Module, Function, Node, Environment
     jiffy:encode(JsonTerm).
 
 -spec to_binary(any()) -> binary().
-to_binary(X) when is_pid(X) -> list_to_binary(pid_to_list(X));
-to_binary(X) when is_atom(X) -> list_to_binary(atom_to_list(X));
-to_binary(X) when is_list(X) -> list_to_binary(X).
+to_binary(X) -> lists:flatten(io_lib:format("~p", [X])).
 
 -spec force_integer(any()) -> integer().
 force_integer(undefined) -> 0;
