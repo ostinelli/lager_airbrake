@@ -94,15 +94,13 @@ notify(Url, Severity, Message, Pid, File, Line, Module, Function, Node, Environm
     case hackney:request(Method, Url, Headers, Json, Options) of
         {ok, 201, _RespHeaders, _ClientRef} ->
             ok;
-        {ok, StatusCode, RespHeaders, ClientRef} ->
+        {ok, StatusCode, _RespHeaders, ClientRef} ->
             %% get response body
             {ok, Body} = hackney:body(ClientRef),
             %% log error
             error("Could not send notification to Airbrake", [
-                {request_body, Json},
                 {response_status_code, StatusCode},
-                {response_headers, RespHeaders},
-                {response_body, Body}
+                {response_body, binary_to_list(Body)}
             ]);
         Other ->
             %% log error
