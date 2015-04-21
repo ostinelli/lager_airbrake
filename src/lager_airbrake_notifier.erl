@@ -42,15 +42,10 @@ notify(LogEntry, Environment, ProjectId, ApiKey) ->
     Node :: atom(),
     Environment :: string()
 ) -> ok.
+check_notify_from_self(_Url, _Severity, _Message, emulator, _File, _Line, _Module, _Function, _Node, _Environment) ->
+    ok; %% do not log
 check_notify_from_self(Url, Severity, Message, Pid, File, Line, Module, Function, Node, Environment) ->
-    {ok, Mp} = re:compile("\\Alager_airbrake_"),
-    case re:run(atom_to_list(Module), Mp) of
-        nomatch ->
-            check_notify_lager_dropped(Url, Severity, Message, Pid, File, Line, Module, Function, Node, Environment);
-        _ ->
-            %% do not log
-            ok
-    end.
+    check_notify_lager_dropped(Url, Severity, Message, Pid, File, Line, Module, Function, Node, Environment).
 
 -spec check_notify_lager_dropped(
     Url :: binary(),
@@ -70,8 +65,7 @@ check_notify_lager_dropped(Url, Severity, Message, Pid, File, Line, Module, Func
         nomatch ->
             notify(Url, Severity, Message, Pid, File, Line, Module, Function, Node, Environment);
         _ ->
-            %% do not log
-            ok
+            ok %% do not log
     end.
 
 -spec notify(
