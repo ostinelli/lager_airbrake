@@ -90,6 +90,7 @@ notify(Url, Severity, Message, Pid, File, Line, Module, Function, Node, Environm
         {<<"Content-Type">>, <<"application/json">>}
     ],
     Options = [],
+
     %% send
     case hackney:request(Method, Url, Headers, Json, Options) of
         {ok, 201, _RespHeaders, _ClientRef} ->
@@ -134,12 +135,12 @@ json_for(Severity, Message, Pid, File, Line, Module, Function, Node, Environment
 
         {errors, [
             {[
-                {type, to_binary(lists:concat(["[", Severity, "] ", Module, ":", Function]))},
-                {message, to_binary(Message)},
+                {type, list_to_binary(lists:concat(["[", Severity, "] ", Module, ":", Function]))},
+                {message, list_to_binary(Message)},
                 {backtrace, [
                     {[
-                        {file, to_binary(File)},
-                        {function, to_binary(Function)},
+                        {file, list_to_binary(atom_to_list(File))},
+                        {function, list_to_binary(atom_to_list(Function))},
                         {line, force_integer(Line)}
                     ]}
                 ]}
@@ -148,21 +149,19 @@ json_for(Severity, Message, Pid, File, Line, Module, Function, Node, Environment
 
         {context,
             {[
-                {environment, to_binary(Environment)}
+                {environment, list_to_binary(Environment)}
             ]}
         },
 
         {environment,
             {[
-                {node, to_binary(Node)},
-                {pid, to_binary(Pid)}
+                {node, list_to_binary(atom_to_list(Node))},
+                {pid, list_to_binary(pid_to_list(Pid))}
             ]}
         }
     ]},
     jiffy:encode(JsonTerm).
 
--spec to_binary(any()) -> binary().
-to_binary(X) -> lists:flatten(io_lib:format("~p", [X])).
 
 -spec force_integer(any()) -> integer().
 force_integer(undefined) -> 0;
