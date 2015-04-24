@@ -6,7 +6,7 @@
 
 %% records
 -record(state, {
-    environment = "" :: string(),
+    environment = <<>> :: binary(),
     project_id = <<>> :: binary(),
     api_key = <<>> :: binary(),
     level = 0 :: non_neg_integer()
@@ -34,7 +34,7 @@ init(Options) ->
     LevelInt = lager_util:level_to_num(Level),
     %% build state
     {ok, #state{
-        environment = Environment,
+        environment = list_to_binary(Environment),
         project_id = list_to_binary(ProjectId),
         api_key = list_to_binary(ApiKey),
         level = LevelInt
@@ -57,7 +57,7 @@ handle_event({log, LogEntry}, #state{
 } = State) ->
     case lager_util:is_loggable(LogEntry, Level, ?MODULE) of
         true ->
-            lager_airbrake_notifier:notify(LogEntry, Environment, ProjectId, ApiKey),
+            lager_airbrake_notifier:notify(Environment, ProjectId, ApiKey, LogEntry),
             {ok, State};
         false ->
             {ok, State}
@@ -113,4 +113,3 @@ terminate(_Reason, _State) ->
 -spec code_change(OldVsn :: any(), #state{}, Extra :: any()) -> {ok, #state{}}.
 code_change(_OldVsn, State, _Extra) ->
     {ok, State}.
-

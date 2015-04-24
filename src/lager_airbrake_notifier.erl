@@ -3,86 +3,111 @@
 %% API
 -export([notify/4]).
 
+%% macros
+-define(NOTIFIER_NAME, <<"lager_airbrake">>).
+-define(NOTIFIER_VERSION, <<"0.1">>).
+-define(NOTIFIER_REPO, <<"https://github.com/ostinelli/lager_airbrake">>).
+
+%% records
+-record(state, {
+    environment = <<>> :: binary(),
+    project_id = <<>> :: binary(),
+    api_key = <<>> :: binary(),
+    severity = undefined :: atom(),
+    message = undefined :: any(),
+    pid = undefined :: pid() | atom(),
+    file = undefined :: list() | undefined,
+    line = undefined :: non_neg_integer() | undefined,
+    function = undefined :: atom(),
+    node = undefined :: atom()
+}).
+
 
 %% ===================================================================
 %% API
 %% ===================================================================
--spec notify(LogEntry :: any(), Environment :: string(), ProjectId :: binary(), ApiKey :: binary()) -> pid().
-notify(LogEntry, Environment, ProjectId, ApiKey) ->
+-spec notify(Environment :: string(), ProjectId :: binary(), ApiKey :: binary(), LogEntry :: any()) -> pid().
+notify(Environment, ProjectId, ApiKey, LogEntry) ->
     spawn(fun() ->
         %% get main properties
         Severity = lager_msg:severity(LogEntry),
         Message = lager_msg:message(LogEntry),
+
         %% get metadata
         Metadata = lager_msg:metadata(LogEntry),
         Pid = proplists:get_value(pid, Metadata),
         File = proplists:get_value(file, Metadata),
         Line = proplists:get_value(line, Metadata),
-        Module = proplists:get_value(module, Metadata),
         Function = proplists:get_value(function, Metadata),
         Node = node(),
-        %% get url
-        Url = url_for(ProjectId, ApiKey),
-        %% notify
-        check_notify_from_self(Url, Severity, Message, Pid, File, Line, Module, Function, Node, Environment)
+
+        State = #state{
+            environment = Environment,
+            project_id = ProjectId,
+            api_key = ApiKey,
+            severity = Severity,
+            message = Message,
+            pid = Pid,
+            file = File,
+            line = Line,
+            function = Function,
+            node = Node
+        },
+
+        check_notify_from_emulator(State)
     end).
 
 %% ===================================================================
 %% Internal
 %% ===================================================================
--spec check_notify_from_self(
-    Url :: binary(),
-    Severity :: atom(),
-    Message :: list(),
-    Pid :: pid(),
-    File :: list(),
-    Line :: non_neg_integer(),
-    Module :: atom(),
-    Function :: atom(),
-    Node :: atom(),
-    Environment :: string()
-) -> ok.
-check_notify_from_self(_Url, _Severity, _Message, emulator, _File, _Line, _Module, _Function, _Node, _Environment) ->
+-spec check_notify_from_emulator(#state{}) -> ok.
+check_notify_from_emulator(#state{
+    pid = emulator
+}) ->
     ok; %% do not log
-check_notify_from_self(Url, Severity, Message, Pid, File, Line, Module, Function, Node, Environment) ->
-    check_notify_lager_dropped(Url, Severity, Message, Pid, File, Line, Module, Function, Node, Environment).
+check_notify_from_emulator(State) ->
+    check_notify_lager_dropped(State).
 
--spec check_notify_lager_dropped(
-    Url :: binary(),
-    Severity :: atom(),
-    Message :: list(),
-    Pid :: pid(),
-    File :: list(),
-    Line :: non_neg_integer(),
-    Module :: atom(),
-    Function :: atom(),
-    Node :: atom(),
-    Environment :: string()
-) -> ok.
-check_notify_lager_dropped(Url, Severity, Message, Pid, File, Line, Module, Function, Node, Environment) ->
+-spec check_notify_lager_dropped(#state{}) -> ok.
+check_notify_lager_dropped(#state{
+    message = Message
+} = State) ->
     {ok, Mp} = re:compile("dropped \\d+ messages in the last second that exceeded the limit of"),
     case re:run(Message, Mp) of
         nomatch ->
-            notify(Url, Severity, Message, Pid, File, Line, Module, Function, Node, Environment);
+            extract_file_and_line(State);
         _ ->
             ok %% do not log
     end.
 
--spec notify(
-    Url :: binary(),
-    Severity :: atom(),
-    Message :: any(),
-    Pid :: pid(),
-    File :: any(),
-    Line :: non_neg_integer(),
-    Module :: atom(),
-    Function :: atom(),
-    Node :: atom(),
-    Environment :: string()
-) -> ok.
-notify(Url, Severity, Message, Pid, File, Line, Module, Function, Node, Environment) ->
+-spec extract_file_and_line(#state{}) -> ok.
+extract_file_and_line(#state{
+    message = Message,
+    file = undefined,
+    line = undefined
+} = State) ->
+    {ok, Mp} = re:compile("\\[{file,\"([^\"]+)\"},{line,(\\d+)}\\]"),
+    case re:run(Message, Mp, [{capture, all_but_first, binary}]) of
+        nomatch ->
+            notify(State);
+        {match, [File1, Line1]} ->
+            notify(State#state{file = File1, line = binary_to_integer(Line1)})
+    end;
+extract_file_and_line(State) ->
+    notify(State).
+
+-spec notify(#state{}) -> ok.
+notify(#state{
+    project_id = ProjectId,
+    api_key = ApiKey
+} = State) ->
+    %% get url
+    Url = url_for(ProjectId, ApiKey),
+
     %% build json
-    Json = json_for(Severity, Message, Pid, File, Line, Module, Function, Node, Environment),
+    Json = json_for(State),
+
+    io:format("Json: ~p", [Json]),
 
     %% build request
     Method = post,
@@ -112,36 +137,39 @@ notify(Url, Severity, Message, Pid, File, Line, Module, Function, Node, Environm
 url_for(ProjectId, ApiKey) ->
     <<"https://airbrake.io/api/v3/projects/", ProjectId/binary, "/notices?key=", ApiKey/binary>>.
 
--spec json_for(
-    Severity :: atom(),
-    Message :: any(),
-    Pid :: pid(),
-    File :: any(),
-    Line :: non_neg_integer(),
-    Module :: atom(),
-    Function :: atom(),
-    Node :: atom(),
-    Environment :: string()
-) -> Json :: binary().
-json_for(Severity, Message, Pid, File, Line, Module, Function, Node, Environment) ->
+-spec json_for(#state{}) -> Json :: binary().
+json_for(#state{
+    environment = Environment,
+    severity = Severity,
+    message = Message,
+    pid = Pid,
+    file = File,
+    line = Line,
+    function = Function,
+    node = Node
+}) ->
+    SeverityBin = to_binary(Severity),
+    FileBin = to_binary(File),
+    LineBin = to_binary(Line),
+
     JsonTerm = {[
         {notifier,
             {[
-                {name, <<"lager_airbrake">>},
-                {version, <<"0.1">>},
-                {url, <<"https://github.com/ostinelli/lager_airbrake">>}
+                {name, ?NOTIFIER_NAME},
+                {version, ?NOTIFIER_VERSION},
+                {url, ?NOTIFIER_REPO}
             ]}
         },
 
         {errors, [
             {[
-                {type, list_to_binary(lists:concat(["[", Severity, "] ", Module, ":", Function]))},
-                {message, list_to_binary(Message)},
+                {type, <<"[", SeverityBin/binary, "] ", FileBin/binary, ":", LineBin/binary>>},
+                {message, unicode:characters_to_binary(Message)},
                 {backtrace, [
                     {[
-                        {file, list_to_binary(atom_to_list(File))},
-                        {function, list_to_binary(atom_to_list(Function))},
-                        {line, force_integer(Line)}
+                        {file, FileBin},
+                        {function, to_binary(Function)},
+                        {line, Line}
                     ]}
                 ]}
             ]}
@@ -149,20 +177,22 @@ json_for(Severity, Message, Pid, File, Line, Module, Function, Node, Environment
 
         {context,
             {[
-                {environment, list_to_binary(Environment)}
+                {environment, Environment}
             ]}
         },
 
         {environment,
             {[
-                {node, list_to_binary(atom_to_list(Node))},
-                {pid, list_to_binary(pid_to_list(Pid))}
+                {node, to_binary(Node)},
+                {pid, to_binary(Pid)}
             ]}
         }
     ]},
     jiffy:encode(JsonTerm).
 
-
--spec force_integer(any()) -> integer().
-force_integer(undefined) -> 0;
-force_integer(X) -> X.
+-spec to_binary(any()) -> binary().
+to_binary(X) when is_binary(X) -> X;
+to_binary(X) when is_list(X) -> list_to_binary(X);
+to_binary(X) when is_integer(X) -> integer_to_binary(X);
+to_binary(X) when is_atom(X) -> list_to_binary(atom_to_list(X));
+to_binary(X) when is_pid(X) -> list_to_binary(pid_to_list(X)).
