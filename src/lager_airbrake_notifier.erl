@@ -16,7 +16,7 @@
     severity = undefined :: atom(),
     message = undefined :: any(),
     pid = undefined :: pid() | atom(),
-    file = undefined :: list() | undefined,
+    file = undefined :: binary() | list() | undefined,
     line = undefined :: non_neg_integer() | undefined,
     function = undefined :: atom(),
     node = undefined :: atom()
@@ -26,7 +26,7 @@
 %% ===================================================================
 %% API
 %% ===================================================================
--spec notify(Environment :: string(), ProjectId :: binary(), ApiKey :: binary(), LogEntry :: any()) -> pid().
+-spec notify(Environment :: binary(), ProjectId :: binary(), ApiKey :: binary(), LogEntry :: any()) -> pid().
 notify(Environment, ProjectId, ApiKey, LogEntry) ->
     spawn(fun() ->
         %% get main properties
