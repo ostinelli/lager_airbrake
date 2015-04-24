@@ -107,8 +107,6 @@ notify(#state{
     %% build json
     Json = json_for(State),
 
-    io:format("Json: ~p", [Json]),
-
     %% build request
     Method = post,
     Headers = [

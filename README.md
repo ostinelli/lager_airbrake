@@ -1,8 +1,8 @@
 # Lager Airbrake
 
-This is a [Lager](https://github.com/basho/lager) backend for [AirBrake](https://www.airbrake.io). If you are using Lager in your application, this backend will report the errors with the desired level of severity to AirBrake.
+This is a [Lager](https://github.com/basho/lager) backend for [Airbrake](https://www.airbrake.io). If you are using Lager in your application, this backend will report the errors with the desired level of severity to Airbrake.
 
-Lager Airbrake will try to use some heuristics to optimize the notification sent to AirBrake, so that errors can be easily differentiated.
+Lager Airbrake will try to use some heuristics to optimize the notification sent to Airbrake, so that errors can be easily differentiated.
 
 
 ### Install
