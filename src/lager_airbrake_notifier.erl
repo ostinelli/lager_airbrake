@@ -112,7 +112,9 @@ notify(#state{
     Headers = [
         {<<"Content-Type">>, <<"application/json">>}
     ],
-    Options = [],
+    Options = [
+        insecure %% getting rid of the {tls_alert,"certificate unknown"} bug
+    ],
 
     %% send
     case hackney:request(Method, Url, Headers, Json, Options) of
@@ -122,7 +124,7 @@ notify(#state{
             %% get response body
             {ok, Body} = hackney:body(ClientRef),
             %% log error
-            error("Could not send notification to Airbrake", [
+            error("Error sending notification to Airbrake", [
                 {response_status_code, StatusCode},
                 {response_body, binary_to_list(Body)}
             ]);
