@@ -11,8 +11,8 @@
 %% records
 -record(state, {
     environment = <<>> :: binary(),
-    project_id = <<>> :: binary(),
-    api_key = <<>> :: binary(),
+    project_id = "" :: string(),
+    api_key = "" :: string(),
     severity = undefined :: atom(),
     message = undefined :: any(),
     pid = undefined :: pid() | atom(),
@@ -26,7 +26,7 @@
 %% ===================================================================
 %% API
 %% ===================================================================
--spec notify(Environment :: binary(), ProjectId :: binary(), ApiKey :: binary(), LogEntry :: any()) -> pid().
+-spec notify(Environment :: binary(), ProjectId :: string(), ApiKey :: string(), LogEntry :: any()) -> pid().
 notify(Environment, ProjectId, ApiKey, LogEntry) ->
     spawn(fun() ->
         %% get main properties
@@ -113,16 +113,15 @@ notify(#state{
         {<<"Content-Type">>, <<"application/json">>}
     ],
     Options = [
-        insecure %% getting rid of the {tls_alert,"certificate unknown"} bug
+        {is_ssl, true},
+        {ssl_options, []}
     ],
 
     %% send
-    case hackney:request(Method, Url, Headers, Json, Options) of
-        {ok, 201, _RespHeaders, _ClientRef} ->
+    case ibrowse:send_req(Url, Headers, Method, Json, Options) of
+        {ok, "201", _RespHeaders, _Body} ->
             ok;
-        {ok, StatusCode, _RespHeaders, ClientRef} ->
-            %% get response body
-            {ok, Body} = hackney:body(ClientRef),
+        {ok, StatusCode, _RespHeaders, Body} ->
             %% log error
             error("Error sending notification to Airbrake", [
                 {response_status_code, StatusCode},
@@ -133,9 +132,9 @@ notify(#state{
             error("Could not send notification to Airbrake", [Other])
     end.
 
--spec url_for(ProjectId :: binary(), ApiKey :: binary()) -> Url :: binary().
+-spec url_for(ProjectId :: string(), ApiKey :: string()) -> Url :: string().
 url_for(ProjectId, ApiKey) ->
-    <<"https://airbrake.io/api/v3/projects/", ProjectId/binary, "/notices?key=", ApiKey/binary>>.
+    lists:concat(["https://airbrake.io/api/v3/projects/", ProjectId, "/notices?key=", ApiKey]).
 
 -spec json_for(#state{}) -> Json :: binary().
 json_for(#state{

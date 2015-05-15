@@ -12,15 +12,13 @@ start() ->
     ok = ensure_started(crypto),
     ok = ensure_started(public_key),
     ok = ensure_started(ssl),
-    ok = ensure_started(idna),
-    ok = ensure_started(hackney),
+    ok = ensure_started(ibrowse),
     ok = ensure_started(lager_airbrake).
 
 -spec stop() -> ok.
 stop() ->
     ok = application:stop(lager_airbrake),
-    ok = application:stop(hackney),
-    ok = application:stop(idna),
+    ok = application:stop(ibrowse),
     ok = application:stop(ssl),
     ok = application:stop(public_key),
     ok = application:stop(crypto).

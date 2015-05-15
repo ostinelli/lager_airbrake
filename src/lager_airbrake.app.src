@@ -11,7 +11,7 @@
             crypto,
             public_key,
             ssl,
-            hackney
+            ibrowse
         ]},
         {mod, {lager_airbrake_app, []}},
         {env, []}

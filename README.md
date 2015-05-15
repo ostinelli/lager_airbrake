@@ -37,7 +37,7 @@ Then include `lager_airbrake_backend` in your `lager` configuration:
 ### Dependencies
 Dependencies are automatically managed by [rebar](https://github.com/rebar/rebar). These are:
 
- * [Hackney](https://github.com/benoitc/hackney) - HTTP client
+ * [iBrowse](https://github.com/cmullaparthi/ibrowse) - HTTP client
  * [Jiffy](https://github.com/davisp/jiffy) - JSON encoder
 
 ### Contributing

@@ -7,8 +7,8 @@
 %% records
 -record(state, {
     environment = <<>> :: binary(),
-    project_id = <<>> :: binary(),
-    api_key = <<>> :: binary(),
+    project_id = "" :: string(),
+    api_key = "" :: string(),
     level = 0 :: non_neg_integer()
 }).
 
@@ -35,8 +35,8 @@ init(Options) ->
     %% build state
     {ok, #state{
         environment = list_to_binary(Environment),
-        project_id = list_to_binary(ProjectId),
-        api_key = list_to_binary(ApiKey),
+        project_id = ProjectId,
+        api_key = ApiKey,
         level = LevelInt
     }}.
 
