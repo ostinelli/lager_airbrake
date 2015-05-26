@@ -128,6 +128,7 @@ code_change(_OldVsn, State, _Extra) ->
 %% ===================================================================
 %% Internal
 %% ===================================================================
+build_ignore_regexes(undefined) -> [];
 build_ignore_regexes(IgnoreStatements) ->
     %% compile custom ignore statements
     F = fun
