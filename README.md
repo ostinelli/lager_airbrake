@@ -10,7 +10,7 @@ Lager Airbrake will try to use some heuristics to optimize the notification sent
 In your project's `rebar.config` file, add `lager_airbrake` as a dependency:
 
 ```erlang
-{lager_airbrake, ".*", {git, "https://github.com/ostinelli/lager_airbrake.git", "master"}}
+{lager_airbrake, ".*", {git, "git://github.com/ostinelli/lager_airbrake.git", "master"}}
 ```
 
 Then include `lager_airbrake_backend` in your `lager` configuration:
@@ -26,7 +26,7 @@ Then include `lager_airbrake_backend` in your `lager` configuration:
             {project_id, "AIRBRAKE_PROJECT_ID"},
             {level, warning},
             {ignore, [
-                {file, "my_app_ignored_file.erl"}
+                {file, "my_app_ignored_file.erl"},
                 {message, "Ignore message"}
             ]}
         ]},
