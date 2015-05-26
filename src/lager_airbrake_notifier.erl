@@ -1,7 +1,7 @@
 -module(lager_airbrake_notifier).
 
 %% API
--export([notify/4]).
+-export([notify/5]).
 
 %% macros
 -define(NOTIFIER_NAME, <<"lager_airbrake">>).
@@ -13,6 +13,7 @@
     environment = <<>> :: binary(),
     project_id = "" :: string(),
     api_key = "" :: string(),
+    ignore = [] :: list(),
     severity = undefined :: atom(),
     message = undefined :: any(),
     pid = undefined :: pid() | atom(),
@@ -26,8 +27,8 @@
 %% ===================================================================
 %% API
 %% ===================================================================
--spec notify(Environment :: binary(), ProjectId :: string(), ApiKey :: string(), LogEntry :: any()) -> pid().
-notify(Environment, ProjectId, ApiKey, LogEntry) ->
+-spec notify(Environment :: binary(), ProjectId :: string(), ApiKey :: string(), Ignore :: list(), LogEntry :: any()) -> pid().
+notify(Environment, ProjectId, ApiKey, Ignore, LogEntry) ->
     spawn(fun() ->
         %% get main properties
         Severity = lager_msg:severity(LogEntry),
@@ -45,6 +46,7 @@ notify(Environment, ProjectId, ApiKey, LogEntry) ->
             environment = Environment,
             project_id = ProjectId,
             api_key = ApiKey,
+            ignore = Ignore,
             severity = Severity,
             message = Message,
             pid = Pid,
@@ -73,7 +75,7 @@ check_notify_lager_dropped(#state{
     message = Message
 } = State) ->
     {ok, Mp} = re:compile("dropped \\d+ messages in the last second that exceeded the limit of"),
-    case re:run(Message, Mp) of
+    case re:run(Message, Mp, [{capture, none}]) of
         nomatch ->
             extract_file_and_line(State);
         _ ->
@@ -91,10 +93,26 @@ extract_file_and_line(#state{
         nomatch ->
             notify(State);
         {match, [File1, Line1]} ->
-            notify(State#state{file = File1, line = binary_to_integer(Line1)})
+            check_ignore(State#state{file = File1, line = binary_to_integer(Line1)})
     end;
 extract_file_and_line(State) ->
-    notify(State).
+    check_ignore(State).
+
+-spec check_ignore(#state{}) -> ok.
+check_ignore(#state{
+    ignore = []
+} = State) ->
+    notify(State);
+check_ignore(#state{
+    file = File,
+    ignore = [{file, IgnoreMp} | TIgnore]
+} = State) ->
+    case re:run(File, IgnoreMp, [{capture, none}]) of
+        nomatch ->
+            check_ignore(State#state{ignore = TIgnore});
+        match ->
+            ok %% do not log
+    end.
 
 -spec notify(#state{}) -> ok.
 notify(#state{

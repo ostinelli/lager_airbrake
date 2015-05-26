@@ -9,7 +9,8 @@
     environment = <<>> :: binary(),
     project_id = "" :: string(),
     api_key = "" :: string(),
-    level = 0 :: non_neg_integer()
+    level = 0 :: non_neg_integer(),
+    ignore = [] :: list()
 }).
 
 
@@ -30,6 +31,8 @@ init(Options) ->
     ApiKey = proplists:get_value(api_key, Options),
     ProjectId = proplists:get_value(project_id, Options),
     Level = proplists:get_value(level, Options),
+    %% get ignores & compile regexes
+    Ignore = build_ignore_regexes(proplists:get_value(ignore, Options)),
     %% init
     LevelInt = lager_util:level_to_num(Level),
     %% build state
@@ -37,7 +40,8 @@ init(Options) ->
         environment = list_to_binary(Environment),
         project_id = ProjectId,
         api_key = ApiKey,
-        level = LevelInt
+        level = LevelInt,
+        ignore = Ignore
     }}.
 
 %% ----------------------------------------------------------------------------------------------------------
@@ -53,11 +57,12 @@ handle_event({log, LogEntry}, #state{
     environment = Environment,
     project_id = ProjectId,
     api_key = ApiKey,
-    level = Level
+    level = Level,
+    ignore = Ignore
 } = State) ->
     case lager_util:is_loggable(LogEntry, Level, ?MODULE) of
         true ->
-            lager_airbrake_notifier:notify(Environment, ProjectId, ApiKey, LogEntry),
+            lager_airbrake_notifier:notify(Environment, ProjectId, ApiKey, Ignore, LogEntry),
             {ok, State};
         false ->
             {ok, State}
@@ -81,7 +86,7 @@ handle_call(get_loglevel, #state{level = Level} = State) ->
 
 handle_call({set_loglevel, NewLevel}, State) ->
     NewLevelInt = lager_util:level_to_num(NewLevel),
-    {ok, ok, State#state{level=NewLevelInt}};
+    {ok, ok, State#state{level = NewLevelInt}};
 
 handle_call(_Request, State) ->
     %% received an unknown call message
@@ -113,3 +118,18 @@ terminate(_Reason, _State) ->
 -spec code_change(OldVsn :: any(), #state{}, Extra :: any()) -> {ok, #state{}}.
 code_change(_OldVsn, State, _Extra) ->
     {ok, State}.
+
+
+%% ===================================================================
+%% Internal
+%% ===================================================================
+build_ignore_regexes(IgnoreStatements) ->
+    F = fun({file, IgnoreRegexp}, Acc) ->
+        case catch re:compile(IgnoreRegexp) of
+            {ok, Mp} ->
+                [{file, Mp} | Acc];
+            _ ->
+                error({invalid_lager_airbrake_ignore_regex, IgnoreRegexp})
+        end
+    end,
+    lists:foldl(F, [], IgnoreStatements).
