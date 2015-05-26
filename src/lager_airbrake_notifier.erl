@@ -32,7 +32,7 @@ notify(Environment, ProjectId, ApiKey, Ignore, LogEntry) ->
     spawn(fun() ->
         %% get main properties
         Severity = lager_msg:severity(LogEntry),
-        Message = lager_msg:message(LogEntry),
+        Message = unicode:characters_to_binary(lager_msg:message(LogEntry)),
 
         %% get metadata
         Metadata = lager_msg:metadata(LogEntry),
@@ -112,6 +112,16 @@ check_ignore(#state{
             check_ignore(State#state{ignore = TIgnore});
         match ->
             ok %% do not log
+    end;
+check_ignore(#state{
+    message = Message,
+    ignore = [{message, IgnoreMp} | TIgnore]
+} = State) ->
+    case re:run(Message, IgnoreMp, [{capture, none}]) of
+        nomatch ->
+            check_ignore(State#state{ignore = TIgnore});
+        match ->
+            ok %% do not log
     end.
 
 -spec notify(#state{}) -> ok.
@@ -181,7 +191,7 @@ json_for(#state{
         {errors, [
             {[
                 {type, <<"[", SeverityBin/binary, "] ", FileBin/binary, ":", LineBin/binary>>},
-                {message, unicode:characters_to_binary(Message)},
+                {message, Message},
                 {backtrace, [
                     {[
                         {file, FileBin},

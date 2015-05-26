@@ -124,12 +124,15 @@ code_change(_OldVsn, State, _Extra) ->
 %% Internal
 %% ===================================================================
 build_ignore_regexes(IgnoreStatements) ->
-    F = fun({file, IgnoreRegexp}, Acc) ->
-        case catch re:compile(IgnoreRegexp) of
-            {ok, Mp} ->
-                [{file, Mp} | Acc];
-            _ ->
-                error({invalid_lager_airbrake_ignore_regex, IgnoreRegexp})
-        end
+    F = fun
+        ({IgnoreType, IgnoreRegexp}, Acc) when IgnoreType =:= file; IgnoreType =:= message ->
+            case catch re:compile(IgnoreRegexp) of
+                {ok, Mp} ->
+                    [{IgnoreType, Mp} | Acc];
+                _ ->
+                    error({invalid_lager_airbrake_ignore_regex, IgnoreRegexp})
+            end;
+        ({IgnoreType, _IgnoreRegexp}, _Acc) ->
+            error({invalid_lager_airbrake_ignore_type, IgnoreType})
     end,
     lists:foldl(F, [], IgnoreStatements).
