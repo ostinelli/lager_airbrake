@@ -1,7 +1,7 @@
 -module(lager_airbrake_notifier).
 
 %% API
--export([notify/5]).
+-export([notify/6]).
 
 %% macros
 -define(NOTIFIER_NAME, <<"lager_airbrake">>).
@@ -13,6 +13,7 @@
     environment = <<>> :: binary(),
     project_id = "" :: string(),
     api_key = "" :: string(),
+    extract_file_and_line_mp = undefined :: undefined | any(),
     ignore = [] :: list(),
     severity = undefined :: atom(),
     message = undefined :: any(),
@@ -27,8 +28,15 @@
 %% ===================================================================
 %% API
 %% ===================================================================
--spec notify(Environment :: binary(), ProjectId :: string(), ApiKey :: string(), Ignore :: list(), LogEntry :: any()) -> pid().
-notify(Environment, ProjectId, ApiKey, Ignore, LogEntry) ->
+-spec notify(
+    Environment :: binary(),
+    ProjectId :: string(),
+    ApiKey :: string(),
+    ExtractFileAndLineMp :: any(),
+    Ignore :: list(),
+    LogEntry :: any()
+) -> pid().
+notify(Environment, ProjectId, ApiKey, ExtractFileAndLineMp, Ignore, LogEntry) ->
     spawn(fun() ->
         %% get main properties
         Severity = lager_msg:severity(LogEntry),
@@ -46,6 +54,7 @@ notify(Environment, ProjectId, ApiKey, Ignore, LogEntry) ->
             environment = Environment,
             project_id = ProjectId,
             api_key = ApiKey,
+            extract_file_and_line_mp = ExtractFileAndLineMp,
             ignore = Ignore,
             severity = Severity,
             message = Message,
@@ -72,12 +81,12 @@ check_notify_from_emulator(State) ->
 
 -spec extract_file_and_line(#state{}) -> ok.
 extract_file_and_line(#state{
+    extract_file_and_line_mp = ExtractFileAndLineMp,
     message = Message,
     file = undefined,
     line = undefined
 } = State) ->
-    {ok, Mp} = re:compile("\\[{file,\"([^\"]+)\"},{line,(\\d+)}\\]"),
-    case re:run(Message, Mp, [{capture, all_but_first, binary}]) of
+    case re:run(Message, ExtractFileAndLineMp, [{capture, all_but_first, binary}]) of
         nomatch ->
             notify(State);
         {match, [File1, Line1]} ->
@@ -92,8 +101,8 @@ check_ignore(#state{
 } = State) ->
     notify(State);
 check_ignore(#state{
-    file = File,
-    ignore = [{file, IgnoreMp} | TIgnore]
+    ignore = [{file, IgnoreMp} | TIgnore],
+    file = File
 } = State) ->
     case re:run(File, IgnoreMp, [{capture, none}]) of
         nomatch ->
@@ -102,8 +111,8 @@ check_ignore(#state{
             ok %% do not log
     end;
 check_ignore(#state{
-    message = Message,
-    ignore = [{message, IgnoreMp} | TIgnore]
+    ignore = [{message, IgnoreMp} | TIgnore],
+    message = Message
 } = State) ->
     case re:run(Message, IgnoreMp, [{capture, none}]) of
         nomatch ->

@@ -10,6 +10,7 @@
     project_id = "" :: string(),
     api_key = "" :: string(),
     level = 0 :: non_neg_integer(),
+    extract_file_and_line_mp = undefined :: undefined | any(),
     ignore = [] :: list()
 }).
 
@@ -33,14 +34,17 @@ init(Options) ->
     Level = proplists:get_value(level, Options),
     %% get ignores & compile regexes
     Ignore = build_ignore_regexes(proplists:get_value(ignore, Options)),
-    %% init
+    %% convert level
     LevelInt = lager_util:level_to_num(Level),
+    %% compile extract file mp
+    {ok, ExtractFileAndLineMp} = re:compile("\\[{file,\"([^\"]+)\"},{line,(\\d+)}\\]"),
     %% build state
     {ok, #state{
         environment = list_to_binary(Environment),
         project_id = ProjectId,
         api_key = ApiKey,
         level = LevelInt,
+        extract_file_and_line_mp = ExtractFileAndLineMp,
         ignore = Ignore
     }}.
 
@@ -58,11 +62,12 @@ handle_event({log, LogEntry}, #state{
     project_id = ProjectId,
     api_key = ApiKey,
     level = Level,
+    extract_file_and_line_mp = ExtractFileAndLineMp,
     ignore = Ignore
 } = State) ->
     case lager_util:is_loggable(LogEntry, Level, ?MODULE) of
         true ->
-            lager_airbrake_notifier:notify(Environment, ProjectId, ApiKey, Ignore, LogEntry),
+            lager_airbrake_notifier:notify(Environment, ProjectId, ApiKey, ExtractFileAndLineMp, Ignore, LogEntry),
             {ok, State};
         false ->
             {ok, State}
