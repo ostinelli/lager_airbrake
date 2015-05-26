@@ -24,7 +24,11 @@ Then include `lager_airbrake_backend` in your `lager` configuration:
             {environment, "development"},
             {api_key, "AIRBRAKE_API_KEY"},
             {project_id, "AIRBRAKE_PROJECT_ID"},
-            {level, warning}
+            {level, warning},
+            {ignore, [
+                {file, "my_app_ignored_file.erl"}
+                {message, "Ignore message"}
+            ]}
         ]},
 
         [...]
@@ -33,6 +37,12 @@ Then include `lager_airbrake_backend` in your `lager` configuration:
 [...]
 }
 ```
+
+`ignore` is a list that allows you to specify which errors should be ignored, i.e. not notified to AirBrake. You can specify two types of ignore statements:
+
+ * `file`: the associated regex will be matched against the filename where the error is generated.
+ * `message`: the associated regex will be matched against the error message.
+
 
 ### Dependencies
 Dependencies are automatically managed by [rebar](https://github.com/rebar/rebar). These are:
