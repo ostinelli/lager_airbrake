@@ -101,6 +101,11 @@ check_ignore(#state{
 } = State) ->
     notify(State);
 check_ignore(#state{
+    ignore = [{file, _IgnoreMp} | TIgnore],
+    file = undefined
+} = State) ->
+   check_ignore(State#state{ignore = TIgnore});
+check_ignore(#state{
     ignore = [{file, IgnoreMp} | TIgnore],
     file = File
 } = State) ->
