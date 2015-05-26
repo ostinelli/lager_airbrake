@@ -124,6 +124,7 @@ code_change(_OldVsn, State, _Extra) ->
 %% Internal
 %% ===================================================================
 build_ignore_regexes(IgnoreStatements) ->
+    %% compile custom ignore statements
     F = fun
         ({IgnoreType, IgnoreRegexp}, Acc) when IgnoreType =:= file; IgnoreType =:= message ->
             case catch re:compile(IgnoreRegexp) of
@@ -135,4 +136,7 @@ build_ignore_regexes(IgnoreStatements) ->
         ({IgnoreType, _IgnoreRegexp}, _Acc) ->
             error({invalid_lager_airbrake_ignore_type, IgnoreType})
     end,
-    lists:foldl(F, [], IgnoreStatements).
+    IgnoreCustom = lists:foldl(F, [], IgnoreStatements),
+    %% append default statement, i.e. ignore dropped lager message
+    {ok, Mp} = re:compile("dropped \\d+ messages in the last second that exceeded the limit of"),
+    [{message, Mp} | IgnoreCustom].

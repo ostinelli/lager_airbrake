@@ -68,19 +68,7 @@ check_notify_from_emulator(#state{
 }) ->
     ok; %% do not log
 check_notify_from_emulator(State) ->
-    check_notify_lager_dropped(State).
-
--spec check_notify_lager_dropped(#state{}) -> ok.
-check_notify_lager_dropped(#state{
-    message = Message
-} = State) ->
-    {ok, Mp} = re:compile("dropped \\d+ messages in the last second that exceeded the limit of"),
-    case re:run(Message, Mp, [{capture, none}]) of
-        nomatch ->
-            extract_file_and_line(State);
-        _ ->
-            ok %% do not log
-    end.
+    extract_file_and_line(State).
 
 -spec extract_file_and_line(#state{}) -> ok.
 extract_file_and_line(#state{
