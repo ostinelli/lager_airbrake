@@ -155,7 +155,7 @@ notify(#state{
             %% log error
             error("Error sending notification to Airbrake", [
                 {response_status_code, StatusCode},
-                {response_body, binary_to_list(Body)}
+                {response_body, Body}
             ]);
         Other ->
             %% log error
