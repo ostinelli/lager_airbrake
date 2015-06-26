@@ -45,7 +45,10 @@ notify(Environment, ProjectId, ApiKey, ExtractFileAndLineMp, Ignore, LogEntry) -
         %% get metadata
         Metadata = lager_msg:metadata(LogEntry),
         Pid = proplists:get_value(pid, Metadata),
-        File = proplists:get_value(file, Metadata),
+        File = case proplists:get_value(file, Metadata) of
+            undefined -> proplists:get_value(module, Metadata);
+            Value -> Value
+        end,
         Line = proplists:get_value(line, Metadata),
         Function = proplists:get_value(function, Metadata),
         Node = node(),
@@ -104,7 +107,7 @@ check_ignore(#state{
     ignore = [{file, _IgnoreMp} | TIgnore],
     file = undefined
 } = State) ->
-   check_ignore(State#state{ignore = TIgnore});
+    check_ignore(State#state{ignore = TIgnore});
 check_ignore(#state{
     ignore = [{file, IgnoreMp} | TIgnore],
     file = File
