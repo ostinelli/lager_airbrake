@@ -132,7 +132,10 @@ check_ignore(#state{
 -spec notify(#state{}) -> ok.
 notify(#state{
     project_id = ProjectId,
-    api_key = ApiKey
+    api_key = ApiKey,
+    severity = Severity,
+    file = File,
+    line = Line
 } = State) ->
     %% get url
     Url = url_for(ProjectId, ApiKey),
@@ -153,16 +156,16 @@ notify(#state{
     %% send
     case ibrowse:send_req(Url, Headers, Method, Json, Options) of
         {ok, "201", _RespHeaders, _Body} ->
-            ok;
+            error_logger:info_msg("Sent notification to aibrak for error: ~p", [{Severity, File, Line}]);
         {ok, StatusCode, _RespHeaders, Body} ->
             %% log error
-            error("Error sending notification to Airbrake", [
-                {response_status_code, StatusCode},
-                {response_body, Body}
-            ]);
+            error_logger:error_msg(
+                "Error sending notification to Airbrake: response status code: ~p, response body: ~p", [
+                    StatusCode, Body
+                ]);
         Other ->
             %% log error
-            error("Could not send notification to Airbrake", [Other])
+            error_logger:error_msg("Could not send notification to Airbrake: ~p", [Other])
     end.
 
 -spec url_for(ProjectId :: string(), ApiKey :: string()) -> Url :: string().
