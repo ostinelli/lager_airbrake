@@ -91,7 +91,7 @@ extract_file_and_line(#state{
 } = State) ->
     case re:run(Message, ExtractFileAndLineMp, [{capture, all_but_first, binary}]) of
         nomatch ->
-            notify(State);
+            check_ignore(State);
         {match, [File, Line]} ->
             check_ignore(State#state{file = File, line = binary_to_integer(Line)})
     end;

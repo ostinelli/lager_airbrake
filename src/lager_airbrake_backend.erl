@@ -128,7 +128,8 @@ code_change(_OldVsn, State, _Extra) ->
 %% ===================================================================
 %% Internal
 %% ===================================================================
-build_ignore_regexes(undefined) -> [];
+build_ignore_regexes(undefined) ->
+    default_ignore_regexes();
 build_ignore_regexes(IgnoreStatements) ->
     %% compile custom ignore statements
     F = fun
@@ -144,5 +145,10 @@ build_ignore_regexes(IgnoreStatements) ->
     end,
     IgnoreCustom = lists:foldl(F, [], IgnoreStatements),
     %% append default statement, i.e. ignore dropped lager message
+    DefaultIgnoreRegexes = default_ignore_regexes(),
+    %% add
+    DefaultIgnoreRegexes ++ IgnoreCustom.
+
+default_ignore_regexes() ->
     {ok, Mp} = re:compile("dropped \\d+ messages in the last second that exceeded the limit of"),
-    [{message, Mp} | IgnoreCustom].
+    [{message, Mp}].
