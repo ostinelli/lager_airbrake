@@ -45,10 +45,7 @@ notify(Environment, ProjectId, ApiKey, ExtractFileAndLineMp, Ignore, LogEntry) -
         %% get metadata
         Metadata = lager_msg:metadata(LogEntry),
         Pid = proplists:get_value(pid, Metadata),
-        File = case proplists:get_value(file, Metadata) of
-            undefined -> proplists:get_value(module, Metadata);
-            Value -> Value
-        end,
+        File = get_file_or_module_info(Metadata),
         Line = proplists:get_value(line, Metadata),
         Function = proplists:get_value(function, Metadata),
         Node = node(),
@@ -74,6 +71,20 @@ notify(Environment, ProjectId, ApiKey, ExtractFileAndLineMp, Ignore, LogEntry) -
 %% ===================================================================
 %% Internal
 %% ===================================================================
+-spec get_file_or_module_info(Metadata :: any()) -> binary() | undefined.
+get_file_or_module_info(Metadata) ->
+    case proplists:get_value(file, Metadata) of
+        undefined -> get_module_info(Metadata);
+        Value -> to_binary(Value)
+    end.
+
+-spec get_module_info(Metadata :: any()) -> binary() | undefined.
+get_module_info(Metadata) ->
+    case proplists:get_value(module, Metadata) of
+        undefined -> undefined;
+        Value -> to_binary(Value)
+    end.
+
 -spec check_notify_from_emulator(#state{}) -> ok.
 check_notify_from_emulator(#state{
     pid = emulator
