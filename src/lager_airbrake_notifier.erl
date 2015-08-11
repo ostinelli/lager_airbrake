@@ -196,7 +196,12 @@ json_for(#state{
 }) ->
     SeverityBin = to_binary(Severity),
     FileBin = to_binary(File),
-    LineBin = to_binary(Line),
+
+    LineInt = case Line of
+        undefined -> 0;
+        _ -> Line
+    end,
+    MessageBin = iolist_to_binary([<<"[">>, SeverityBin, <<"] ">>, FileBin, <<":">>, to_binary(LineInt)]),
 
     JsonTerm = {[
         {notifier,
@@ -209,13 +214,13 @@ json_for(#state{
 
         {errors, [
             {[
-                {type, <<"[", SeverityBin/binary, "] ", FileBin/binary, ":", LineBin/binary>>},
+                {type, MessageBin},
                 {message, Message},
                 {backtrace, [
                     {[
                         {file, FileBin},
                         {function, to_binary(Function)},
-                        {line, Line}
+                        {line, LineInt}
                     ]}
                 ]}
             ]}
