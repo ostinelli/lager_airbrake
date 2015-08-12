@@ -1,7 +1,7 @@
 -module(lager_airbrake_notifier).
 
 %% API
--export([notify/6]).
+-export([notify/8]).
 
 %% macros
 -define(NOTIFIER_NAME, <<"lager_airbrake">>).
@@ -13,7 +13,9 @@
     environment = <<>> :: binary(),
     project_id = "" :: string(),
     api_key = "" :: string(),
+    from_self_mp = undefined :: undefined | any(),
     extract_file_and_line_mp = undefined :: undefined | any(),
+    extract_file_and_function_mp = undefined :: undefined | any(),
     ignore = [] :: list(),
     severity = undefined :: atom(),
     message = undefined :: any(),
@@ -32,11 +34,13 @@
     Environment :: binary(),
     ProjectId :: string(),
     ApiKey :: string(),
+    FromSelfMp :: any(),
     ExtractFileAndLineMp :: any(),
+    ExtractFileAndFunctionMp :: any(),
     Ignore :: list(),
     LogEntry :: any()
 ) -> pid().
-notify(Environment, ProjectId, ApiKey, ExtractFileAndLineMp, Ignore, LogEntry) ->
+notify(Environment, ProjectId, ApiKey, FromSelfMp, ExtractFileAndLineMp, ExtractFileAndFunctionMp, Ignore, LogEntry) ->
     spawn(fun() ->
         %% get main properties
         Severity = lager_msg:severity(LogEntry),
@@ -54,7 +58,9 @@ notify(Environment, ProjectId, ApiKey, ExtractFileAndLineMp, Ignore, LogEntry) -
             environment = Environment,
             project_id = ProjectId,
             api_key = ApiKey,
+            from_self_mp = FromSelfMp,
             extract_file_and_line_mp = ExtractFileAndLineMp,
+            extract_file_and_function_mp = ExtractFileAndFunctionMp,
             ignore = Ignore,
             severity = Severity,
             message = Message,
@@ -91,7 +97,19 @@ check_notify_from_emulator(#state{
 }) ->
     ok; %% do not log
 check_notify_from_emulator(State) ->
-    extract_file_and_line(State).
+    check_nofify_from_self(State).
+
+-spec check_nofify_from_self(#state{}) -> ok.
+check_nofify_from_self(#state{
+    from_self_mp = FromSelfMp,
+    message = Message
+} = State) ->
+    case re:run(Message, FromSelfMp, [{capture, none}]) of
+        match ->
+            ok; %% do not log
+        _ ->
+            extract_file_and_line(State)
+    end.
 
 -spec extract_file_and_line(#state{}) -> ok.
 extract_file_and_line(#state{
@@ -102,11 +120,29 @@ extract_file_and_line(#state{
 } = State) ->
     case re:run(Message, ExtractFileAndLineMp, [{capture, all_but_first, binary}]) of
         nomatch ->
-            check_ignore(State);
+            extract_file_and_function(State);
         {match, [File, Line]} ->
-            check_ignore(State#state{file = File, line = binary_to_integer(Line)})
+            extract_file_and_function(State#state{file = File, line = binary_to_integer(Line)})
     end;
 extract_file_and_line(State) ->
+    extract_file_and_function(State).
+
+-spec extract_file_and_function(#state{}) -> ok.
+extract_file_and_function(#state{
+    extract_file_and_function_mp = ExtractFileAndFunctionMp,
+    message = Message,
+    file = undefined,
+    function = Function
+} = State) ->
+    case re:run(Message, ExtractFileAndFunctionMp, [{capture, all_but_first, binary}]) of
+        nomatch ->
+            check_ignore(State);
+        {match, [File, FunctionMatch]} when Function =:= undefined ->
+            check_ignore(State#state{file = File, function = FunctionMatch});
+        {match, [File, _]} ->
+            check_ignore(State#state{file = File})
+    end;
+extract_file_and_function(State) ->
     check_ignore(State).
 
 -spec check_ignore(#state{}) -> ok.
@@ -171,12 +207,12 @@ notify(#state{
         {ok, StatusCode, _RespHeaders, Body} ->
             %% log error
             error_logger:error_msg(
-                "Error sending notification to Airbrake: response status code: ~p, response body: ~p", [
+                "[LAGER_AIRBRAKE] Error sending notification: response status code: ~p, response body: ~p", [
                     StatusCode, Body
                 ]);
         Other ->
             %% log error
-            error_logger:error_msg("Could not send notification to Airbrake: ~p", [Other])
+            error_logger:error_msg("[LAGER_AIRBRAKE] Could not send notification to Airbrake: ~p", [Other])
     end.
 
 -spec url_for(ProjectId :: string(), ApiKey :: string()) -> Url :: string().

@@ -10,7 +10,9 @@
     project_id = "" :: string(),
     api_key = "" :: string(),
     level = 0 :: non_neg_integer(),
+    from_self_mp = undefined :: undefined | any(),
     extract_file_and_line_mp = undefined :: undefined | any(),
+    extract_file_and_function_mp = undefined :: undefined | any(),
     ignore = [] :: list()
 }).
 
@@ -36,15 +38,19 @@ init(Options) ->
     Ignore = build_ignore_regexes(proplists:get_value(ignore, Options)),
     %% convert level
     LevelInt = lager_util:level_to_num(Level),
-    %% compile extract file mp
+    %% compile extract file mps
+    {ok, FromSelfMp} = re:compile("\\[LAGER_AIRBRAKE\\]"),
     {ok, ExtractFileAndLineMp} = re:compile("\\[{file,\"([^\"]+)\"},{line,(\\d+)}\\]"),
+    {ok, ExtractFileAndFunctionMp} = re:compile("([a-zA-Z_]+):([a-zA-Z_]+/\\d+)"),
     %% build state
     {ok, #state{
         environment = list_to_binary(Environment),
         project_id = ProjectId,
         api_key = ApiKey,
         level = LevelInt,
+        from_self_mp = FromSelfMp,
         extract_file_and_line_mp = ExtractFileAndLineMp,
+        extract_file_and_function_mp = ExtractFileAndFunctionMp,
         ignore = Ignore
     }}.
 
@@ -62,12 +68,23 @@ handle_event({log, LogEntry}, #state{
     project_id = ProjectId,
     api_key = ApiKey,
     level = Level,
+    from_self_mp = FromSelfMp,
     extract_file_and_line_mp = ExtractFileAndLineMp,
+    extract_file_and_function_mp = ExtractFileAndFunctionMp,
     ignore = Ignore
 } = State) ->
     case lager_util:is_loggable(LogEntry, Level, ?MODULE) of
         true ->
-            lager_airbrake_notifier:notify(Environment, ProjectId, ApiKey, ExtractFileAndLineMp, Ignore, LogEntry),
+            lager_airbrake_notifier:notify(
+                Environment,
+                ProjectId,
+                ApiKey,
+                FromSelfMp,
+                ExtractFileAndLineMp,
+                ExtractFileAndFunctionMp,
+                Ignore,
+                LogEntry
+            ),
             {ok, State};
         false ->
             {ok, State}
