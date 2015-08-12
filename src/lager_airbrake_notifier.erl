@@ -121,7 +121,7 @@ extract_file_and_line(#state{
     case re:run(Message, ExtractFileAndLineMp, [{capture, all_but_first, binary}]) of
         nomatch ->
             extract_file_and_function(State);
-        {match, [File, Line]} ->
+        {match, [File, Line | _]} ->
             extract_file_and_function(State#state{file = File, line = binary_to_integer(Line)})
     end;
 extract_file_and_line(State) ->
@@ -137,9 +137,9 @@ extract_file_and_function(#state{
     case re:run(Message, ExtractFileAndFunctionMp, [{capture, all_but_first, binary}]) of
         nomatch ->
             check_ignore(State);
-        {match, [File, FunctionMatch]} when Function =:= undefined ->
+        {match, [File, FunctionMatch | _]} when Function =:= undefined ->
             check_ignore(State#state{file = File, function = FunctionMatch});
-        {match, [File, _]} ->
+        {match, [File, _ | _]} ->
             check_ignore(State#state{file = File})
     end;
 extract_file_and_function(State) ->
