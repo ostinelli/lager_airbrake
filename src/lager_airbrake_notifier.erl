@@ -5,7 +5,7 @@
 
 %% macros
 -define(NOTIFIER_NAME, <<"lager_airbrake">>).
--define(NOTIFIER_VERSION, <<"0.1">>).
+-define(NOTIFIER_VERSION, <<"0.3.0">>).
 -define(NOTIFIER_REPO, <<"https://github.com/ostinelli/lager_airbrake">>).
 
 %% records
