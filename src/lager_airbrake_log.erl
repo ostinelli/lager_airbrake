@@ -38,4 +38,4 @@ check_from_self(Message, FromSelfMp) ->
 %% ===================================================================
 -spec append_log_identifier(Message :: string()) -> string().
 append_log_identifier(Message) ->
-    string:concat(["[LAGER_AIRBRAKE] ", Message]).
+    lists:concat(["[LAGER_AIRBRAKE] ", Message]).
