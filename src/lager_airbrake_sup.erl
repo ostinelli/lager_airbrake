@@ -22,7 +22,7 @@ start_link() ->
 %% Callbacks
 %% ===================================================================
 -spec init([]) ->
-    {ok, {{supervisor:strategy(), non_neg_integer(), non_neg_integer()}, [supervisor:child_spec()]}}.
+    {ok, {{supervisor:strategy(), non_neg_integer(), integer()}, [supervisor:child_spec()]}}.
 init([]) ->
     Children = [],
     {ok, {{one_for_one, 10, 10}, Children}}.
