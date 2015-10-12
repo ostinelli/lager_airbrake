@@ -39,7 +39,7 @@ init(Options) ->
     %% convert level
     LevelInt = lager_util:level_to_num(Level),
     %% compile extract file mps
-    {ok, FromSelfMp} = re:compile("\\[LAGER_AIRBRAKE\\]"),
+    FromSelfMp = lager_airbrake_log:from_self_mp(),
     {ok, ExtractFileAndLineMp} = re:compile("\\[{file,\"([^\"]+)\"},{line,(\\d+)}\\]"),
     {ok, ExtractFileAndFunctionMp} = re:compile("([a-zA-Z_]+):([a-zA-Z_]+/\\d+)"),
     %% build state

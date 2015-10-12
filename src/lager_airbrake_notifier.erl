@@ -104,8 +104,8 @@ check_nofify_from_self(#state{
     from_self_mp = FromSelfMp,
     message = Message
 } = State) ->
-    case re:run(Message, FromSelfMp, [{capture, none}]) of
-        match ->
+    case lager_airbrake_log:check_from_self(Message, FromSelfMp) of
+        true ->
             ok; %% do not log
         _ ->
             extract_file_and_line(State)
@@ -203,16 +203,15 @@ notify(#state{
     %% send
     case ibrowse:send_req(Url, Headers, Method, Json, Options) of
         {ok, "201", _RespHeaders, _Body} ->
-            error_logger:info_msg("Sent notification to aibrak for error: ~p", [{Severity, File, Line}]);
+            lager_airbrake_log:log_info("Sent notification for error: ~p", [{Severity, File, Line}]);
         {ok, StatusCode, _RespHeaders, Body} ->
             %% log error
-            error_logger:error_msg(
-                "[LAGER_AIRBRAKE] Error sending notification: response status code: ~p, response body: ~p", [
-                    StatusCode, Body
-                ]);
+            lager_airbrake_log:log_error("Error sending notification: response status code: ~p, response body: ~p",
+                [StatusCode, Body]
+            );
         Other ->
             %% log error
-            error_logger:error_msg("[LAGER_AIRBRAKE] Could not send notification to Airbrake: ~p", [Other])
+            lager_airbrake_log:log_error("Could not send notification to Airbrake: ~p", [Other])
     end.
 
 -spec url_for(ProjectId :: string(), ApiKey :: string()) -> Url :: string().
