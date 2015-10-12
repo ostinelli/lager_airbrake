@@ -3,7 +3,7 @@
 -module(lager_airbrake_log).
 
 %% API
--export([log_info/2, log_error/2]).
+-export([info/2, error/2]).
 -export([from_self_mp/0]).
 -export([check_from_self/2]).
 
@@ -11,12 +11,12 @@
 %% ===================================================================
 %% API
 %% ===================================================================
--spec log_info(Message :: string(), Opts :: []) -> ok.
-log_info(Message, Opts) ->
+-spec info(Message :: string(), Opts :: list()) -> ok.
+info(Message, Opts) ->
     error_logger:info_msg(append_log_identifier(Message), Opts).
 
--spec log_error(Message :: string(), Opts :: []) -> ok.
-log_error(Message, Opts) ->
+-spec error(Message :: string(), Opts :: list()) -> ok.
+error(Message, Opts) ->
     error_logger:error_msg(append_log_identifier(Message), Opts).
 
 -spec from_self_mp() -> any().

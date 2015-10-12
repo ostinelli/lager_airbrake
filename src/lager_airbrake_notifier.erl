@@ -22,7 +22,7 @@
     pid = undefined :: pid() | atom(),
     file = undefined :: binary() | list() | undefined,
     line = undefined :: non_neg_integer() | undefined,
-    function = undefined :: atom(),
+    function = undefined :: binary() | atom(),
     node = undefined :: atom()
 }).
 
@@ -203,15 +203,15 @@ notify(#state{
     %% send
     case ibrowse:send_req(Url, Headers, Method, Json, Options) of
         {ok, "201", _RespHeaders, _Body} ->
-            lager_airbrake_log:log_info("Sent notification for error: ~p", [{Severity, File, Line}]);
+            lager_airbrake_log:info("Sent notification for error: ~p", [{Severity, File, Line}]);
         {ok, StatusCode, _RespHeaders, Body} ->
             %% log error
-            lager_airbrake_log:log_error("Error sending notification: response status code: ~p, response body: ~p",
+            lager_airbrake_log:error("Error sending notification: response status code: ~p, response body: ~p",
                 [StatusCode, Body]
             );
         Other ->
             %% log error
-            lager_airbrake_log:log_error("Could not send notification to Airbrake: ~p", [Other])
+            lager_airbrake_log:error("Could not send notification to Airbrake: ~p", [Other])
     end.
 
 -spec url_for(ProjectId :: string(), ApiKey :: string()) -> Url :: string().
